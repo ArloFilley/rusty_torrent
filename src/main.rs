@@ -31,41 +31,40 @@ use crate::{
 };
 
 // External Ipmorts
-use log::{ debug, info, LevelFilter, error };
+use clap::Parser;
+use log::{ debug, info, LevelFilter };
+
+/// Struct Respresenting needed arguments
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    log_file_path: Option<String>,
+
+    #[arg(short, long)]
+    torrent_file_path: String,
+
+    #[arg(short, long)]
+    download_path: String,
+}
 
 /// The root function
 #[tokio::main]
 async fn main() {
+    let args = Args::parse();
+
     // Creates a log file to handle large amounts of data
-    let log_path = "/Users/arlo/code/RustyTorrent/log/rustytorrent.log";
-    simple_logging::log_to_file(log_path, LevelFilter::Info).unwrap();
-
-    let torrent_file_path = match std::env::args().nth(1) {
-        None => { 
-            error!("Please Provide A Torrent File"); 
-            eprintln!("Critical error, please read log for more info: {}", log_path);
-            return 
-        }
-        Some(path) => { path }
-    };
-
-    let download_path = match std::env::args().nth(2) {
-        None => { 
-            error!("Please Provide A Download Path"); 
-            eprintln!("Critical error, please read log for more info: {}", log_path);
-            return 
-        }
-        Some(path) => { path }
-    };
+    let log_path = args.log_file_path.unwrap_or(String::from("./log/rustytorrent.log"));
+    simple_logging::log_to_file(&log_path, LevelFilter::Info).unwrap();
 
     // Read the Torrent File
-    let torrent = Torrent::from_torrent_file(&torrent_file_path).await;
+    let torrent = Torrent::from_torrent_file(&args.torrent_file_path).await;
     info!("Sucessfully read torrent file");
     torrent.log_useful_information();
 
     // Create the files that will be written to
     let mut files = Files::new();
-    files.create_files(&torrent, &download_path).await;
+    files.create_files(&torrent, &args.download_path).await;
 
     // Gets peers from the given tracker
     let (_remote_hostname, _remote_port) = torrent.get_tracker();
@@ -93,7 +92,7 @@ async fn main() {
     info!("Found Peers");
     
     // Creates an assumed peer connection to the `SocketAddr` given
-    let mut peer = match Peer::create_connection(&format!("{}:{}", announce_message_response.ips[4], announce_message_response.ports[4])).await {
+    let mut peer = match Peer::create_connection(&format!("{}:{}", announce_message_response.ips[0], announce_message_response.ports[0])).await {
         None => { return },
         Some(peer) => peer
     };
