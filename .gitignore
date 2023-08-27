@@ -1,0 +1,6 @@
+/target
+Cargo.lock
+/log/rusty_torrent.log
+/testing
+/process
+/log
