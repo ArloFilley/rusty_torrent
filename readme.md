@@ -78,6 +78,21 @@ cargo run --release /path/to/your.torrent
 cargo run --release /path/to/your.torrent /path/to/downloads
 ```
 
+4. Clap help message
+```
+A BitTorrent client implemented in Rust that allows you to interact with the BitTorrent protocol and download torrents.
+
+Usage: rusty_torrent [OPTIONS] --torrent-file-path <TORRENT_FILE_PATH> --download-path <DOWNLOAD_PATH>
+
+Options:
+  -l, --log-file-path <LOG_FILE_PATH>          
+  -t, --torrent-file-path <TORRENT_FILE_PATH>  
+  -d, --download-path <DOWNLOAD_PATH>          
+  -h, --help                                   Print help
+  -V, --version                                Print version
+
+```
+
 The client will start downloading the torrent files and interacting with peers.
 
 ## How It Works
