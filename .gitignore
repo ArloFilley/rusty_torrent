@@ -4,3 +4,4 @@ Cargo.lock
 /testing
 /process
 /log
+.DS_Store
