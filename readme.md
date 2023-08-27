@@ -103,6 +103,13 @@ This BitTorrent client uses Rust's asynchronous programming features to manage c
 
 Contributions are welcome! If you find any bugs or want to add new features, please feel free to open issues and pull requests on the GitHub repository.
 
+## References
+
+These resources were used to build this project
+- [Bittorrent Community Wiki](https://wiki.theory.org/BitTorrentSpecification)
+- [Bittorrent Udp Tracker Protocol](https://www.rasterbar.com/products/libtorrent/udp_tracker_protocol.html)
+- [Bittorrent Specification](https://www.bittorrent.org/beps/bep_0003.html)
+
 ## License
 
 This project is licensed under the MIT License.
