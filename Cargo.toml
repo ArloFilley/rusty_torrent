@@ -8,7 +8,6 @@ description = "A BitTorrent client implemented in Rust that allows you to intera
 authors = ["Arlo Filley <filleyarlo@gmail.com>"]
 exclude = ["testing/", "process/", ".vscode/", ".DS_STORE"]
 license = "MIT"
-license-file = "LICENSE"
 keywords = ["bittorrent", "torrent", "torrentclient"]
 readme = "README.md"
 repository = "https://github.com/arlofilley/rusty_torrent"

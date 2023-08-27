@@ -1,5 +1,5 @@
-use log::error;
 use std::vec;
+use log::error;
 
 /// Represents a message in the BitTorrent protocol.
 #[derive(Debug, PartialEq)]
@@ -10,6 +10,14 @@ pub struct Message {
     pub message_type: MessageType,
     /// The payload of the message, if any.
     pub payload: Option<Vec<u8>>,
+}
+
+pub trait ToBuffer {
+    fn to_buffer(self) -> Vec<u8>;
+}
+
+pub trait FromBuffer {
+    fn from_buffer(buf: &[u8]) -> Self;
 }
 
 impl Message {
@@ -23,7 +31,9 @@ impl Message {
     pub fn new(message_length: u32, message_type: MessageType, payload: Option<Vec<u8>>) -> Self {
         Self { message_length, message_type, payload }
     }
+}
 
+impl FromBuffer for Message {
     /// Decodes a message from a given buffer.
     ///
     /// # Arguments
@@ -33,11 +43,9 @@ impl Message {
     /// # Returns
     ///
     /// A new `Message` instance on success, or an empty `Result` indicating an error.
-    pub fn from_buffer(buf: &Vec<u8>) -> Result<Self, ()> {
+    fn from_buffer(buf: &[u8]) -> Self {
         let mut message_length: [u8; 4] = [0; 4];
-        for i in 0..4 {
-            message_length[i] = buf[i];
-        };
+        message_length[..4].copy_from_slice(&buf[..4]);
 
         let message_length = u32::from_be_bytes(message_length); 
         
@@ -47,44 +55,32 @@ impl Message {
         if message_length == 0 {
             message_type = MessageType::KeepAlive;
             payload = None;
+        } else if message_length == 5 {
+            message_type = buf[4].into();
+            payload = None;
         } else {
-            message_type = match buf[4] {
-                0 => MessageType::Choke,
-                1 => MessageType::Unchoke,
-                2 => MessageType::Interested,
-                3 => MessageType::NotInterested,
-                4 => MessageType::Have,
-                5 => MessageType::Bitfield,
-                6 => MessageType::Request,
-                7 => MessageType::Piece,
-                8 => MessageType::Cancel,
-                9 => MessageType::Port,
-                _ => {
-                    error!("Invalid Message Type: {} | Message: {:?}", buf[4], buf);
-                    return Err(())
-                }
-            };
-
-            // if message_type == MessageType::Piece && 5 + message_length - 1 != 16397 {
-            //     error!("{:?}", 5..5 + message_length as usize - 1);
-            // }
+            message_type = buf[4].into();
             
-            payload = Some(buf[5..5 + message_length as usize - 1].to_vec());
+            let end_of_message = 4 + message_length as usize;
+            payload = Some(buf[5..end_of_message].to_vec());
         }
 
-        Ok(Self {
+        Self {
             message_length,
             message_type,
             payload
-        })
+        }
     }
+}
 
+
+impl ToBuffer for Message {
     /// Converts the `Message` instance to a byte buffer for sending.
     ///
     /// # Returns
     ///
     /// A byte vector containing the serialized message.
-    pub fn to_buffer(&mut self) -> Vec<u8> {
+    fn to_buffer(self) -> Vec<u8> {
         let mut buf: Vec<u8> = vec![];
 
         for byte in self.message_length.to_be_bytes() {
@@ -95,54 +91,30 @@ impl Message {
             MessageType::KeepAlive => { 
                 return buf 
             },
-            MessageType::Choke => { 
-                buf.push(0);
+            MessageType::Choke | MessageType::Unchoke | MessageType::Interested | MessageType::NotInterested => { 
+                buf.push(self.message_type.into());
                 return buf;
             },
-            MessageType::Unchoke => { 
-                buf.push(1);
-                return buf;
+            MessageType::Have | MessageType::Bitfield | MessageType::Request | MessageType::Piece | MessageType::Cancel | MessageType::Port => { 
+                buf.push(self.message_type.into());
             },
-            MessageType::Interested => { 
-                buf.push(2);
-                return buf;
-            },
-            MessageType::NotInterested => { 
-                buf.push(3);
-                return buf;
-            },
-            MessageType::Have => { 
-                buf.push(4);
-            },
-            MessageType::Bitfield => { 
-                buf.push(5);
-            },
-            MessageType::Request => { 
-                buf.push(6);
-            },
-            MessageType::Piece => { 
-                buf.push(7);
-            },
-            MessageType::Cancel => { 
-                buf.push(8);
-            },
-            MessageType::Port => { 
-                buf.push(9);
-            },
-        }
-
-        match &self.payload {
-            None => { panic!("Error you are trying to create a message that needs a payload with no payload") }
-            Some(payload) => {
-                for byte in payload {
-                    buf.push(*byte)
-                }
-
-                buf
+            MessageType::Error => {
+                panic!("Error making message into buffer")
             }
         }
-    }
 
+        match self.payload {
+            None => { panic!("Error you are trying to create a message that needs a payload with no payload") }
+            Some(payload) => {
+                buf.extend(payload);
+            }
+        }
+
+        buf
+    }
+}
+    
+impl Message {
     /// Create a request message from a given piece_index, offset, and length
     /// 
     /// # Arguments
@@ -181,7 +153,7 @@ impl Message {
     /// # Returns
     ///
     /// A tuple containing a vector of message byte buffers and the number of messages.
-    pub fn number_of_messages(buf: &Vec<u8>) -> (Vec<Vec<u8>>, u32) {
+    pub fn number_of_messages(buf: &[u8]) -> (Vec<Vec<u8>>, u32) {
         let mut message_num = 0;
         let mut messages: Vec<Vec<u8>> = vec![];
 
@@ -194,7 +166,7 @@ impl Message {
             j = u32::from_be_bytes([buf[i], buf[i + 1], buf[i + 2], buf[i + 3]]) as usize + 4;
             
             messages.push(buf[i..i+j].to_vec());
-            i = i+j;
+            i += j;
             message_num += 1;
 
             if buf[i] == 0 && buf[i + 1] == 0 && buf[i + 2] == 0 && buf[i + 3] == 0 {
@@ -234,4 +206,47 @@ pub enum MessageType {
     Cancel = 8,
     /// Placeholder for unimplemented message type.
     Port = 9,
+    Error
+}
+
+impl From<u8> for MessageType {
+    fn from(val: u8) -> MessageType {
+        match val {
+            0 => MessageType::Choke,
+            1 => MessageType::Unchoke,
+            2 => MessageType::Interested,
+            3 => MessageType::NotInterested,
+            4 => MessageType::Have,
+            5 => MessageType::Bitfield,
+            6 => MessageType::Request,
+            7 => MessageType::Piece,
+            8 => MessageType::Cancel,
+            9 => MessageType::Port,
+            _ => {
+                error!("Invalid Message Type: {}", val);
+                MessageType::Error
+            }
+        }
+    }
+}
+
+impl From<MessageType> for u8 {
+    fn from(val: MessageType) -> u8 {
+        match val {
+            MessageType::Choke => 0,
+            MessageType::Unchoke => 1,
+            MessageType::Interested => 2,
+            MessageType::NotInterested => 3,
+            MessageType::Have => 4,
+            MessageType::Bitfield => 5,
+            MessageType::Request => 6,
+            MessageType::Piece => 7,
+            MessageType::Cancel => 8,
+            MessageType::Port => 9,
+            _ => {
+                error!("Invalid Message Type: {:?}", val);
+                u8::MAX
+            }
+        }
+    }
 }

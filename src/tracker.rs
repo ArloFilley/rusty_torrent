@@ -94,7 +94,7 @@ pub trait ToBuffer {
 /// A trait for converting a type from a byte buffer.
 pub trait FromBuffer {
     /// Converts a byte buffer into the implementing type.
-    fn from_buffer(buf: &Vec<u8>) -> Self;
+    fn from_buffer(buf: &[u8]) -> Self;
 }
 
 #[derive(Debug)]
@@ -129,23 +129,17 @@ impl ToBuffer for ConnectionMessage {
 }
 
 impl FromBuffer for ConnectionMessage {
-    fn from_buffer(buf: &Vec<u8>) -> Self {
+    fn from_buffer(buf: &[u8]) -> Self {
         let mut action: [u8; 4] = [0; 4];
-        for i in 0..4 {
-            action[i] = buf[i];
-        }
+        action[..4].copy_from_slice(&buf[..4]);
         let action = i32::from_be_bytes(action);
 
         let mut transaction_id: [u8; 4] = [0; 4];
-        for i in 4..8 {
-            transaction_id[i - 4] = buf[i];
-        }
+        transaction_id[..4].copy_from_slice(&buf[4..8]);
         let transaction_id = i32::from_be_bytes(transaction_id);
 
         let mut connection_id: [u8; 8] = [0; 8];
-        for i in 8..16 {
-            connection_id[i - 8] = buf[i];
-        }
+        connection_id[..4].copy_from_slice(&buf[8..16]);
         let connection_id = i64::from_be_bytes(connection_id);
 
         
@@ -179,15 +173,13 @@ pub struct AnnounceMessage {
 
 impl AnnounceMessage {
     /// Creates a new announce message.
-    pub fn new(connection_id: i64, infohash: &Vec<u8>, peerid: &str, total_length: i64) -> Self {
-        let mut info_hash: [u8; 20] = [0; 20];
-        for i in 0..20 {
-            info_hash[i] = infohash[i];
-        }
+    pub fn new(connection_id: i64, infohash: &[u8], peerid: &str, total_length: i64) -> Self {
+        let mut info_hash: [u8; 20] = [ 0; 20 ];
+        info_hash[..20].copy_from_slice(&infohash[..20]);
 
         let mut peer_id: [u8; 20] = [0; 20];
-        for i in 0..20 {
-            peer_id[i] = peerid.chars().nth(i).unwrap() as u8;
+        for (i, character) in peerid.chars().enumerate() {
+            peer_id[i] = character as u8;
         }
 
         Self { 
@@ -246,35 +238,25 @@ pub struct AnnounceMessageResponse {
 
 impl FromBuffer for AnnounceMessageResponse {
     /// Converts a byte buffer into an `AnnounceMessageResponse` instance.
-    fn from_buffer(buf: &Vec<u8>) -> Self {
+    fn from_buffer(buf: &[u8]) -> Self {
         let mut action: [u8; 4] = [0; 4];
-        for i in 0..4 {
-            action[i] = buf[i];
-        }
+        action[..4].copy_from_slice(&buf[0..4]);
         let action = i32::from_be_bytes(action);
 
-        let mut transaction_id: [u8; 4] = [0; 4];
-        for i in 4..8 {
-            transaction_id[i - 4] = buf[i];
-        }
+        let mut transaction_id: [u8; 4] = [ 0; 4 ];
+        transaction_id[..4].copy_from_slice(&buf[4..8]);
         let transaction_id = i32::from_be_bytes(transaction_id);
 
         let mut interval: [u8; 4] = [0; 4];
-        for i in 8..12 {
-            interval[i - 8] = buf[i];
-        }
+        interval[..4].copy_from_slice(&buf[8..12]);
         let interval = i32::from_be_bytes(interval);
 
         let mut leechers: [u8; 4] = [0; 4];
-        for i in 12..16 {
-            leechers[i - 12] = buf[i];
-        }
+        leechers[..4].copy_from_slice(&buf[12..16]);
         let leechers = i32::from_be_bytes(leechers);
 
         let mut seeders: [u8; 4] = [0; 4];
-        for i in 16..20 {
-            seeders[i - 16] = buf[i];
-        }
+        seeders[..4].copy_from_slice(&buf[16..20]);
         let seeders = i32::from_be_bytes(seeders);
 
         let mut ips: Vec<Ipv4Addr> = vec![];

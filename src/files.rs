@@ -53,7 +53,7 @@ impl Files {
 
                     for dir in &t_file.path[..t_file.path.len() - 1] {
                         path.push('/');
-                        path.push_str(&dir);
+                        path.push_str(dir);
                         
                         if !dir_exists(&path).await.unwrap() {
                             debug!("Creating: {path}");

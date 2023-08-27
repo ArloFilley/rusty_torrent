@@ -3,7 +3,7 @@
 // Crate Imports
 use crate::{
     handshake::Handshake,
-    message::{ Message, MessageType }, 
+    message::{ FromBuffer, Message, MessageType, ToBuffer }, 
     torrent::Torrent
 };
 
@@ -69,7 +69,7 @@ impl Peer {
     pub async fn handshake(&mut self, torrent: &Torrent) {
         let mut buf = vec![0; 1024];
 
-        let handshake_message = Handshake::new(torrent.get_info_hash()).unwrap();
+        let handshake_message = Handshake::new(&torrent.get_info_hash()).unwrap();
 
         self.connection_stream.writable().await.unwrap();
         self.connection_stream.write_all(&handshake_message.to_buffer()).await.unwrap();
@@ -80,21 +80,11 @@ impl Peer {
         let handshake = Handshake::from_buffer(&buf[..68].to_vec()).unwrap();
         handshake.log_useful_information();
 
-        for message_buf in Message::number_of_messages(&buf[68..].to_vec()).0 {
-            let message = match Message::from_buffer(&message_buf) {
-                Err(()) => { 
-                    error!("error decoding message");
-                    self.disconnect().await;
-                    return;
-                },
-                Ok(message) => { message }
-            };
+        for message_buf in Message::number_of_messages(&buf[68..]).0 {
+            let message = Message::from_buffer(&message_buf);
 
-            match message.message_type {
-                MessageType::Unchoke => {
-                    self.choking = false;
-                }
-                _ => {}
+            if message.message_type == MessageType::Unchoke {
+                self.choking = false;
             }
         }
 
@@ -104,10 +94,7 @@ impl Peer {
     /// Keeps the connection alive and sends interested messages until the peer unchokes
     pub async fn keep_alive_until_unchoke(&mut self) {
         loop {
-            let message = match self.read_message().await {
-                None => return,
-                Some(message) => message
-            };
+            let message = self.read_message().await;
 
             debug!("{message:?}");
             match message.message_type {
@@ -128,7 +115,7 @@ impl Peer {
     }
 
     /// Sends a message to the peer and waits for a response, which it returns
-    pub async fn send_message(&mut self, mut message: Message) -> Message {
+    pub async fn send_message(&mut self, message: Message) -> Message {
         let mut buf = vec![0; 16_397];
 
         self.connection_stream.writable().await.unwrap();
@@ -137,11 +124,11 @@ impl Peer {
         self.connection_stream.readable().await.unwrap();
         let _ = self.connection_stream.read_exact(&mut buf).await.unwrap();
 
-        Message::from_buffer(&buf).unwrap()
+        Message::from_buffer(&buf)
     }
 
     /// Sends a message to the peer and waits for a response, which it returns
-    pub async fn send_message_exact_size_response(&mut self, mut message: Message, size: usize) -> Message {
+    pub async fn send_message_exact_size_response(&mut self, message: Message, size: usize) -> Message {
         let mut buf = vec![0; size];
 
         self.connection_stream.writable().await.unwrap();
@@ -150,32 +137,23 @@ impl Peer {
         self.connection_stream.readable().await.unwrap();
         let _ = self.connection_stream.read_exact(&mut buf).await.unwrap();
 
-        Message::from_buffer(&buf).unwrap()
+        Message::from_buffer(&buf)
     }
 
     /// Sends a message but doesn't wait for a response
-    pub async fn send_message_no_response(&mut self, mut message: Message) {
+    pub async fn send_message_no_response(&mut self, message: Message) {
         self.connection_stream.writable().await.unwrap();
         self.connection_stream.write_all(&message.to_buffer()).await.unwrap();
     }
     
     /// reads a message from the peer
-    pub async fn read_message(&mut self) -> Option<Message> {
+    pub async fn read_message(&mut self) -> Message {
         let mut buf = vec![0; 16_397];
 
         self.connection_stream.readable().await.unwrap();
         let _ = self.connection_stream.read(&mut buf).await.unwrap();
 
-        match Message::from_buffer(&buf) {
-            Err(()) => {
-                error!("Unable to decode message");
-                self.disconnect().await;
-                return None;
-            },
-            Ok(message) => {
-                Some(message)
-            }
-        }
+        Message::from_buffer(&buf)
     }
 
     /// Shutsdown the connection stream
@@ -197,8 +175,7 @@ impl Peer {
     pub async fn request_piece(&mut self, index: u32, piece_length: u32, len: &mut u32, total_len: u32) -> Vec<u8> {
         let mut buf = vec![];
         // Sequentially requests piece from the peer
-        for offset in (0..piece_length).step_by(16_384 as usize) {
-            
+        for offset in (0..piece_length).step_by(16_384) {
             let mut length = 16_384;
 
             let response: Message;
@@ -217,12 +194,12 @@ impl Peer {
             
             match response.message_type {
                 MessageType::Piece => {
-                    let data = response.payload.unwrap();
+                    let mut data = response.payload.unwrap();
                     *len += data.len() as u32;
                     *len -= 8;
                     
-                    for i in 8..data.len() {
-                        buf.push(data[i])
+                    for byte in data.drain(..).skip(8) {
+                        buf.push(byte)
                     }
                 },
                 _ => { debug!("didn't recieve expected piece request | Recieved: {:?}", response.message_type); }

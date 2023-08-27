@@ -95,7 +95,7 @@ async fn main() {
     let mut peer = match Peer::create_connection(&format!("{}:{}", announce_message_response.ips[0], announce_message_response.ports[0])).await {
         None => { return },
         Some(peer) => peer
-    };
+    }; 
 
     let num_pieces = torrent.info.pieces.len() / 20;
     peer.handshake(&torrent).await;

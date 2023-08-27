@@ -107,7 +107,6 @@ impl Torrent {
         match &self.info.files {
             None => { 
                 info!("> {}", self.info.name);
-                return 
             }
             Some(files) => {
                 for file in files {
@@ -142,9 +141,9 @@ impl Torrent {
     /// # Returns
     ///
     /// * `true` if the piece is correct, `false` otherwise.
-    pub fn check_piece(&self, piece: &Vec<u8>, index: u32) -> bool {
+    pub fn check_piece(&self, piece: &[u8], index: u32) -> bool {
         let mut hasher = Sha1::new();
-        hasher.update(&piece);
+        hasher.update(piece);
         let result = hasher.finalize();  
 
         let piece_hash = &self.info.pieces[(index * 20) as usize..(index * 20 + 20) as usize];
@@ -197,7 +196,7 @@ impl Torrent {
             }
         }
 
-        for (i, url) in self.announce_list.as_ref().unwrap().into_iter().enumerate() {
+        for (i, url) in self.announce_list.as_ref().unwrap().iter().enumerate() {
             debug!("{:?}", url);
             if let Some(captures) = re.captures(&url[i]) {
                 let hostname = captures.get(1).unwrap().as_str();
