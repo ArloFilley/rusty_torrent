@@ -9,7 +9,7 @@ use crate::{
 
 // External imports
 use log::{ debug, error };
-use std::net::SocketAddr;
+use std::net::{SocketAddr, SocketAddrV4};
 use tokio::{
   io::{ AsyncReadExt, AsyncWriteExt },
   net::TcpStream
@@ -20,7 +20,7 @@ pub struct Peer {
   /// The `TcpStream` that is used to communicate with the peeer
   connection_stream: TcpStream,
   /// The `SocketAddr` of the peer
-  pub socket_addr: SocketAddr,
+  pub socket_addr: SocketAddrV4,
   /// The id of the peer
   pub peer_id: String,
   /// Whether the peer is choking the client
@@ -33,29 +33,21 @@ impl Peer {
   /// # Arguments
   ///
   /// * `socket_address` - The socket address of the peer.
-  pub async fn create_connection(socket_address: &str) -> Option<Self> {
-    let socket_addr = match socket_address.parse::<SocketAddr>() {
-      Err(err) => {
-        error!("error parsing address {}, err: {}", socket_address, err);
-        return None;
-      }
-      Ok(addr) => { addr }
-    };
-    
-    let connection_stream = match TcpStream::connect(socket_addr).await {
+  pub async fn create_connection(socket_address: SocketAddrV4) -> Option<Self> {
+    let connection_stream = match TcpStream::connect(socket_address).await {
       Err(err) => {
         error!("unable to connect to {}, err: {}", socket_address, err);
         return None
       },
       Ok(stream) => {
-        debug!("created tcpstream successfully to: {socket_addr}");
+        debug!("created tcpstream successfully to: {socket_address}");
         stream
       }
     };
     
     Some(Self {
       connection_stream,
-      socket_addr,
+      socket_addr: socket_address,
       peer_id: String::new(),
       choking: true,
     })

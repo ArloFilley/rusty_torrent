@@ -49,7 +49,7 @@ impl FromBuffer for Message {
     
     let message_length = u32::from_be_bytes(message_length); 
     
-    let payload: Option<Vec<u8>>;
+    let mut payload: Option<Vec<u8>> = None;
     let message_type: MessageType;
     
     if message_length == 0 {
@@ -66,9 +66,9 @@ impl FromBuffer for Message {
       if end_of_message > buf.len() {
         error!("index too long");
         debug!("{buf:?}");
-      }
-      
-      payload = Some(buf[5..end_of_message].to_vec());
+      } else {
+        payload = Some(buf[5..end_of_message].to_vec());
+      } 
     }
     
     Self {
