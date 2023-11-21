@@ -5,3 +5,4 @@ Cargo.lock
 /process
 /log
 .DS_Store
+/downloads

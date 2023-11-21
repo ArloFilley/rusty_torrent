@@ -94,33 +94,36 @@ async fn main() {
     
     let num_pieces = torrent.info.pieces.len() / 20;
     
-    let mut peer = match Peer::create_connection(peers[0]).await {
-        None => { return },
-        Some(peer) => peer
-    };
-            
-    peer.handshake(&torrent).await;
-    peer.keep_alive_until_unchoke().await;
-    info!("Successfully Created Connection with peer: {}", peer.peer_id);
+    
 
     println!("{}", peers.len());
     
     let mut len = 0;
-    
-    for index in 0..num_pieces {
-        let piece= peer.request_piece(
-            index as u32, torrent.info.piece_length as u32, 
-            &mut len, torrent.get_total_length() as u32
-        ).await;
+    let mut i = 0;
+    let t = torrent.clone();
+
+    let (sender, mut reciever) = Peer::test(peers[0], torrent).await;
+
+    loop {
+        let _ = sender.send(peer::ControlMessage::DownloadPiece(i, t.info.piece_length as u32, len, t.get_total_length() as u32));
+        reciever.resubscribe();
+
+        let a = reciever.recv().await.unwrap();
         
-        if torrent.check_piece(&piece, index as u32) {
-            files.write_piece(piece).await;
+        println!("2 {a:?}");
+
+        let peer::ControlMessage::DownloadedPiece(b) = a else {
+            continue;
+        };
+
+        if t.check_piece(&b, i) {
+            files.write_piece(b).await;
         } else {
             break
         }
     }
     
-    peer.disconnect().await;
+    //peer.disconnect().await;
 
     
     info!("Successfully completed download");
