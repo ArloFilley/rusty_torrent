@@ -1,7 +1,6 @@
 use std::net::{SocketAddr, Ipv4Addr, SocketAddrV4};
 
 use tokio::net::UdpSocket;
-use log::{debug, error};
 
 use crate::torrent::Torrent;
 
@@ -26,22 +25,16 @@ impl Tracker {
   /// # Panics
   ///
   /// Panics if there is an error parsing the given address or creating the UDP socket.
-  pub async fn new(listen_address: SocketAddr, remote_address: SocketAddr) -> Result<Self, ()> {
+  pub async fn new(listen_address: SocketAddr, remote_address: SocketAddr) -> Result<Self, String> {
     let Ok(connection_stream) = UdpSocket::bind(listen_address).await else {
-        error!("error binding to udpsocket {listen_address}");
-        return Err(())
+        return Err(format!("error binding to udpsocket {listen_address}"))
     };
-
-    debug!("bound udpsocket successfully to: {listen_address}");
     
     match connection_stream.connect(remote_address).await {
       Err(err) => {
-        error!("unable to connect to {}, err: {}", remote_address, err);
-        panic!("error creating udpsocket, {}", err);
+        return Err(format!("error creating udpsocket, {}", err));
       },
-      Ok(()) => {
-        debug!("successfully connected to: {remote_address}");
-      }
+      Ok(()) => { }
     };
     
     

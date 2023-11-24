@@ -9,30 +9,20 @@
 //! Checks piece hashes
 //! Writes to torrent file
 
-// Modules
-mod files;
-mod handshake;
-mod peer;
-mod message;
-mod torrent;
-mod tracker;
-
 use core::panic;
 use std::net::SocketAddr;
 
 // Crate Imports
-use crate::{
+use lib_rusty_torrent::{
     files::Files,
-    peer::Peer, 
+    peer::*,
     torrent::Torrent,
-    tracker::tracker::Tracker
+    tracker::Tracker,
 };
 
-use tokio::sync::mpsc;
 // External Ipmorts
 use clap::Parser;
 use log::{ debug, info, LevelFilter, error };
-use tokio::spawn;
 
 /// Struct Respresenting needed arguments
 #[derive(Parser, Debug)]
@@ -64,8 +54,7 @@ async fn main() {
     info!("==> WELCOME TO RUSTY-TORRENT  <==");
     
     // Read the Torrent File
-    let torrent = Torrent::from_torrent_file(&args.torrent_file_path).await;
-    torrent.log_useful_information();
+    let torrent = Torrent::from_torrent_file(&args.torrent_file_path).await.unwrap();
     
     // Create the files that will be written to
     let mut files = Files::new();
@@ -102,28 +91,25 @@ async fn main() {
     let mut i = 0;
     let t = torrent.clone();
 
-    let (sender, mut reciever) = Peer::test(peers[0], torrent).await;
 
-    loop {
-        let _ = sender.send(peer::ControlMessage::DownloadPiece(i, t.info.piece_length as u32, len, t.get_total_length() as u32));
-        reciever.resubscribe();
 
-        let a = reciever.recv().await.unwrap();
+    let _ = sender.send(peer::ControlMessage::DownloadPiece(i, t.info.piece_length as u32, len, t.get_total_length() as u32));
+
+    let a = reciever.recv().await.unwrap();
         
-        println!("2 {a:?}");
+    println!("2 {a:?}");
 
-        let peer::ControlMessage::DownloadedPiece(b) = a else {
-            continue;
-        };
+    let peer::ControlMessage::DownloadedPiece(b) = a else {
+        continue;
+    };
 
-        if t.check_piece(&b, i) {
-            files.write_piece(b).await;
-        } else {
-            break
-        }
+    if t.check_piece(&b, i) {
+        files.write_piece(b).await;
+    } else {
+        break
     }
     
-    //peer.disconnect().await;
+    peer.disconnect().await;
 
     
     info!("Successfully completed download");
