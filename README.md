@@ -26,5 +26,5 @@ The BitTorrent Client is an example application built using the BitTorrent Libra
 
 ## Links
 
-[Lib Rusty Torrent Readme](./lib_rusty_torrent/README.md)
-[Rusty Torrenter Readme](./lib_rusty_torrent/README.md)
+- [Lib Rusty Torrent Readme](./lib_rusty_torrent/README.md)
+- [Rusty Torrenter Readme](./lib_rusty_torrent/README.md)

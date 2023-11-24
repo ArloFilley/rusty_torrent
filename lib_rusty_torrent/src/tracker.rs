@@ -54,7 +54,7 @@ impl Tracker {
   /// # Returns
   ///
   /// A byte vector containing the received response.
-  async fn send_message<T: ToBuffer>(&mut self, message: &T) -> Vec<u8> {
+  pub async fn send_message<T: ToBuffer>(&mut self, message: &T) -> Vec<u8> {
     let mut buf: Vec<u8> = vec![ 0; 16_384 ];
     
     self.connection_stream.send(&message.to_buffer()).await.unwrap();
@@ -63,7 +63,7 @@ impl Tracker {
     buf
   }
 
-  async fn send_handshake(&mut self) -> i64 {
+  pub async fn send_handshake(&mut self) -> i64 {
     ConnectionMessage::from_buffer(
         &self.send_message(&ConnectionMessage::create_basic_connection()).await
     ).connection_id
