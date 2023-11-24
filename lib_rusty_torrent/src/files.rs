@@ -1,4 +1,3 @@
-use log::debug;
 use tokio::{
   fs::try_exists as dir_exists,
   fs::create_dir as create_dir,
@@ -56,7 +55,6 @@ impl Files {
             path.push_str(dir);
             
             if !dir_exists(&path).await.unwrap() {
-              debug!("Creating: {path}");
               create_dir(&path).await.unwrap();
             }
           }
@@ -64,8 +62,6 @@ impl Files {
           path.push('/');
           path.push_str(&t_file.path[t_file.path.len() - 1]);
           
-          
-          debug!("Creating: {path}");
           let file = File::create(&path).await.unwrap();
           let length = t_file.length;
           
@@ -92,14 +88,12 @@ impl Files {
       
       if file.current_length + piece_len > file.length {
         let n = file.file.write(&piece[j..(file.length - file.current_length) as usize]).await.unwrap();
-        debug!("Wrote {n}B > {}", file.name);
         j = (file.length - file.current_length) as usize;
         file.current_length += j as u64;
         piece_len -= j as u64;
         file.complete = true;
       } else {
         let n = file.file.write(&piece[j..]).await.unwrap();
-        debug!("Wrote {n}B > {}", file.name);
         file.current_length += piece_len;
         return
       }
